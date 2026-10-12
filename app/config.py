@@ -23,8 +23,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check_jwt_key_material(self) -> "Settings":
-        if self.jwt_algorithm == "HS256" and not self.jwt_secret:
-            raise ValueError("JWT_SECRET es obligatorio cuando JWT_ALGORITHM=HS256")
+        if self.jwt_algorithm == "HS256" and (
+            not self.jwt_secret or len(self.jwt_secret.get_secret_value()) < 32
+        ):
+            raise ValueError("JWT_SECRET debe tener al menos 32 caracteres con JWT_ALGORITHM=HS256")
         if self.jwt_algorithm == "RS256" and not self.jwt_public_key:
             raise ValueError("JWT_PUBLIC_KEY es obligatorio cuando JWT_ALGORITHM=RS256")
         return self

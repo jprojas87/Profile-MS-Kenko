@@ -1,9 +1,28 @@
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
+import jwt
+
+from app.config import get_settings
 from app.db.models.profile import Profile
 from app.domain.enums import DocumentType
+
+TEST_JWT_SECRET = "test-secret-with-at-least-32-bytes!!"
+
+
+def make_token(
+    user_id: uuid.UUID | str,
+    *,
+    expires_in: timedelta = timedelta(minutes=15),
+    **claims: Any,
+) -> str:
+    settings = get_settings()
+    assert settings.jwt_secret is not None
+    now = datetime.now(UTC)
+    payload: dict[str, Any] = {"sub": str(user_id), "iat": now, "exp": now + expires_in}
+    payload.update(claims)
+    return jwt.encode(payload, settings.jwt_secret.get_secret_value(), algorithm="HS256")
 
 
 def make_profile(**overrides: Any) -> Profile:

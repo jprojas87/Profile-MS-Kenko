@@ -5,14 +5,16 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 
-from app.api.routes import health
+from app.api.routes import health, profiles
 from app.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.ids import new_uuid7
 from app.core.logging import configure_logging, correlation_id_var
 from app.db.session import create_db_engine, create_session_factory
+from app.events.adapters.log_publisher import LogEventPublisher
 
 CORRELATION_HEADER = "X-Correlation-Id"
+API_PREFIX = "/api/v1"
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine = create_db_engine(settings.database_url)
     app.state.engine = engine
     app.state.session_factory = create_session_factory(engine)
+    # Sustituir por el adaptador de EventBridge en la fase 4.
+    app.state.event_publisher = LogEventPublisher()
     logger.info("service_started", extra={"extra_fields": {"environment": settings.environment}})
     try:
         yield
@@ -79,4 +83,5 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
     app.include_router(health.router)
+    app.include_router(profiles.router, prefix=API_PREFIX)
     return app

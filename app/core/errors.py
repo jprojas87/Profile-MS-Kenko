@@ -7,11 +7,17 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.core.logging import correlation_id_var
-from app.domain.exceptions import DomainError, ProfileAlreadyExistsError, ProfileNotFoundError
+from app.domain.exceptions import (
+    AuthenticationFailedError,
+    DomainError,
+    ProfileAlreadyExistsError,
+    ProfileNotFoundError,
+)
 
 logger = logging.getLogger(__name__)
 
 DOMAIN_STATUS_CODES: dict[type[DomainError], int] = {
+    AuthenticationFailedError: 401,
     ProfileNotFoundError: 404,
     ProfileAlreadyExistsError: 409,
 }

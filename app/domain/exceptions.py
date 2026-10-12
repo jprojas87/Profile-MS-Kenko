@@ -15,3 +15,7 @@ class ProfileNotFoundError(DomainError):
 
 class ProfileAlreadyExistsError(DomainError):
     code = "PROFILE_ALREADY_EXISTS"
+
+
+class AuthenticationFailedError(DomainError):
+    code = "UNAUTHORIZED"

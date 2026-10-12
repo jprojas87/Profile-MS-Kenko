@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
 from app.db.session import create_db_engine
+from tests.factories import TEST_JWT_SECRET
 
 ROOT = Path(__file__).resolve().parent.parent
 TEST_DATABASE_URL = os.environ.get(
@@ -20,7 +21,8 @@ TEST_DATABASE_URL = os.environ.get(
 # Los tests de integración usan una base dedicada; nunca apuntar a la base de desarrollo.
 _TEST_DB_NAME = re.compile(r"^[a-z_]+_test$")
 
-os.environ.setdefault("JWT_SECRET", "test-secret")
+# Fuerza la clave de prueba: tiene prioridad sobre el .env que llega por env_file en Docker.
+os.environ["JWT_SECRET"] = TEST_JWT_SECRET
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 

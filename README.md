@@ -100,19 +100,59 @@ Todas las variables están documentadas en `.env.example`. Resumen:
 
 ## Endpoints actuales
 
-| Método | Ruta | Descripción |
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| GET | `/health` | No | Proceso y conexión a BD. 200 si todo está bien, 503 si la BD no responde. |
+| GET | `/api/v1/profiles/me` | Bearer JWT | Perfil del usuario autenticado. 404 si aún no existe. |
+| PUT | `/api/v1/profiles/me` | Bearer JWT | Actualiza campos editables. Publica `ProfileUpdated` solo si cambia algún campo del evento. |
+
+**`PUT /api/v1/profiles/me`:** campos editables y reglas:
+
+| Campo | Tipo | Reglas |
 |---|---|---|
-| GET | `/health` | Proceso y conexión a BD. 200 si todo está bien, 503 si la BD no responde. |
+| `phone` | string | E.164 (`+573001234567`). No admite `null`. |
+| `address` | `{line, city}` | Ambos obligatorios si se envía. No admite `null`. |
+| `department` | string o `null` | `null` lo borra. No viaja en eventos. |
+| `emergencyContact` | `{name, phone}` o `null` | `null` borra nombre y teléfono. Si se envía, ambos son obligatorios. |
+
+- Los campos omitidos no cambian. Un cuerpo vacío `{}` no escribe nada.
+- Campos no editables (`email`, `documentType`, `documentNumber`, `birthDate`, `userId`, ...) devuelven 422.
+- Si los valores enviados son iguales a los actuales, no hay escritura ni evento y `updatedAt` no cambia.
+- Un cambio que solo toca `department` actualiza la BD pero no publica evento.
+- El evento `ProfileUpdated` lleva el estado completo y `changedFields` en el orden `phone`, `address`, `emergencyContact`.
+- El `correlationId` del evento es el header `X-Correlation-Id` de la petición.
+
+**Autenticación:** el token se envía en `Authorization: Bearer <jwt>`. El servicio solo valida la firma,
+`exp`, `sub` (UUID = userId) e `iss`/`aud` si están configurados. El `userId` se toma **solo** del token;
+nunca de la URL ni del cuerpo. Sin token válido: 401 `UNAUTHORIZED`.
+
+**Respuestas JSON:** los campos van en camelCase (igual que los eventos), por ejemplo `firstName`,
+`address.line`, `emergencyContact`.
 
 Todas las respuestas incluyen `X-Correlation-Id`. Si el cliente lo envía como UUID válido, se reutiliza;
 si no, se genera uno. Los errores usan el formato `{"error": {"code", "message", "correlationId", "details"?}}`.
 
+Generar un token de prueba firmado con la `JWT_SECRET` del `.env` (solo desarrollo; se ejecuta en `profile-api`
+para usar la misma clave que la API):
+
+```bash
+TOKEN=$(docker compose exec -T profile-api python -c "import uuid,datetime,jwt;from app.config import get_settings as g;s=g();print(jwt.encode({'sub':str(uuid.uuid4()),'exp':datetime.datetime.now(datetime.UTC)+datetime.timedelta(minutes=15)},s.jwt_secret.get_secret_value(),algorithm='HS256'))")
+curl -s -H "Authorization: Bearer $TOKEN" localhost:8000/api/v1/profiles/me
+```
+
 ## Pendiente
 
 - **JWT (TODO):** confirmar con el equipo de Authentication el algoritmo definitivo y los claims. Hoy se
-  asume `sub` = userId (UUID); `email` y `role` están pendientes de confirmar. No se validan todavía.
+  exige `exp` y `sub` (UUID). `email` y `role` están pendientes de confirmar y no se usan. Además, PyJWT
+  rechaza un token con claim `aud` si `JWT_AUDIENCE` no está configurado; confirmar si Authentication lo emite.
+- **Clave HS256:** `JWT_SECRET` debe tener al menos 32 caracteres (requisito de RFC 7518 para HMAC-SHA256).
 - **Tipos de documento (TODO):** `DocumentType` tiene CC, TI, CE y PA. Confirmar la lista completa.
 - **Eventos y mensajería (fase 4):** publicación a EventBridge, consumo SQS, worker idempotente y
   `docs/events.md`. Pendiente la decisión sobre LocalStack (requiere token) frente a moto.
+  Hoy la API usa `LogEventPublisher`, que solo registra metadatos (sin datos personales).
+- **Confirmar con el equipo de eventos:** que un cambio solo de `department` no publique evento
+  (el campo no viaja en los eventos).
+- **Consistencia BD-evento:** el evento se publica después del commit. Si la publicación falla, el
+  cambio queda guardado sin evento. Se resolverá en la fase 4 con el patrón Transactional Outbox.
 - **Worker y red compartida `kenko-net`:** se añadirán en la fase 4 junto con el emulador de AWS.
 - **Terraform (fase 5):** `infra/terraform/`.
