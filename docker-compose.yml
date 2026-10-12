@@ -1,0 +1,66 @@
+# Desarrollo local de profile-service.
+#   docker compose up --build                              # db + migraciones + api
+#   docker compose run --rm profile-migrate alembic current  # comandos de migración
+#   docker compose --profile test run --rm profile-tests     # pruebas (unit + integración)
+
+name: profile-service
+
+services:
+  profile-db:
+    image: postgres:16
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-profile}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-profile}
+      POSTGRES_DB: ${POSTGRES_DB:-profile}
+    ports:
+      - "${PROFILE_DB_PORT:-5432}:5432"
+    volumes:
+      - profile-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  profile-migrate:
+    build:
+      context: .
+      target: runtime
+    env_file: .env
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      profile-db:
+        condition: service_healthy
+
+  profile-api:
+    build:
+      context: .
+      target: runtime
+    env_file: .env
+    ports:
+      - "${PROFILE_API_PORT:-8000}:8000"
+    restart: unless-stopped
+    depends_on:
+      profile-db:
+        condition: service_healthy
+      profile-migrate:
+        condition: service_completed_successfully
+
+  profile-tests:
+    build:
+      context: .
+      target: test
+    env_file: .env
+    environment:
+      TEST_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-profile}:${POSTGRES_PASSWORD:-profile}@profile-db:5432/profile_test
+    profiles: ["test"]
+    depends_on:
+      profile-db:
+        condition: service_healthy
+
+volumes:
+  profile-db-data:

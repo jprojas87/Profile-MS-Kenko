@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.ids import new_uuid7
 from app.core.logging import configure_logging, correlation_id_var
+from app.db.session import create_db_engine, create_session_factory
 
 CORRELATION_HEADER = "X-Correlation-Id"
 
@@ -18,11 +19,16 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    logger.info(
-        "service_started", extra={"extra_fields": {"environment": get_settings().environment}}
-    )
-    yield
-    logger.info("service_stopped")
+    settings = get_settings()
+    engine = create_db_engine(settings.database_url)
+    app.state.engine = engine
+    app.state.session_factory = create_session_factory(engine)
+    logger.info("service_started", extra={"extra_fields": {"environment": settings.environment}})
+    try:
+        yield
+    finally:
+        engine.dispose()
+        logger.info("service_stopped")
 
 
 def _resolve_correlation_id(header_value: str | None) -> str:
@@ -74,6 +80,3 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health.router)
     return app
-
-
-app = create_app()
