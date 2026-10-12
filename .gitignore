@@ -1,0 +1,20 @@
+# Secretos y entorno local
+.env
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Herramientas
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Terraform (fase 5)
+infra/terraform/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars.local

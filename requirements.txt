@@ -1,0 +1,5 @@
+fastapi==0.143.0
+pydantic==2.14.1
+pydantic-settings==2.15.0
+uvicorn==0.54.0
+uuid-utils==1.0.0
