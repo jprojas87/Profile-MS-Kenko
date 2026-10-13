@@ -4,8 +4,7 @@ Microservicio de **perfil del afiliado** de la sucursal virtual de Kenko. Es la 
 los datos personales. Forma parte de un sistema orientado a eventos (Authentication, Profile,
 Documents, Appointments, Notifications); los servicios no se llaman entre sí por HTTP.
 
-> Estado: **bloque 2 de la implementación**. Hay configuración, logging, errores, base de datos,
-> migraciones y `/health`. Todavía no hay endpoints de perfil, JWT ni eventos (ver [Pendiente](#pendiente)).
+> Estado: API de consulta y actualización implementada; falta integrar la mensajería asíncrona y Terraform.
 
 ## Requisitos
 
@@ -66,8 +65,8 @@ uv run --locked ruff check . && uv run --locked ruff format --check .
 
 Las dependencias y sus versiones exactas se declaran en `pyproject.toml`; `uv.lock` fija también
 las dependencias transitivas. Usa `uv sync --locked` para instalar sin modificar el lockfile.
-Durante esta migración, `requirements.txt` y `requirements-dev.txt` se conservan temporalmente
-porque el Dockerfile aún los usa. Se retirarán al completar el paso 2 de la migración a uv.
+Docker instala runtime con `uv sync --locked --no-dev` y el stage de pruebas añade el grupo de
+desarrollo desde el mismo lockfile. uv está fijado a la versión 0.9.9 en el Dockerfile.
 
 ## Estructura
 
