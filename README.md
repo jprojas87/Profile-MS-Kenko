@@ -11,7 +11,7 @@ Documents, Appointments, Notifications); los servicios no se llaman entre sí po
 
 - Windows con WSL2 (Ubuntu). El proyecto debe vivir en el sistema de archivos de WSL (`~/`), no en `/mnt/c`.
 - Docker y Docker Compose (en WSL, Docker Desktop con la integración de WSL o el daemon de Docker instalado en Ubuntu).
-- Para ejecutar pruebas o ruff fuera de Docker: Python 3.12 y `uv`. Esto es opcional; todo puede hacerse en contenedores.
+- Para desarrollo local: Python 3.12 y `uv`. La versión de Python está indicada en `.python-version`.
 
 ## Puesta en marcha
 
@@ -55,14 +55,19 @@ docker compose --profile test run --rm profile-tests       # unit + integración
 Las pruebas de integración usan la base `profile_test` (se crea automáticamente). Nunca apuntan a
 la base de desarrollo: la configuración exige que el nombre termine en `_test`.
 
-Ejecución local (opcional), con la BD de Docker publicada en el host:
+Ejecución local con uv (requiere la BD de Docker publicada en el host):
 
 ```bash
-uv venv .venv --python 3.12 && uv pip install -p .venv -r requirements-dev.txt
+uv sync --locked
 docker compose up -d profile-db
-TEST_DATABASE_URL=postgresql+psycopg://profile:profile@localhost:5432/profile_test .venv/bin/pytest
-.venv/bin/ruff check . && .venv/bin/ruff format --check .
+TEST_DATABASE_URL=postgresql+psycopg://profile:profile@localhost:5432/profile_test uv run --locked pytest
+uv run --locked ruff check . && uv run --locked ruff format --check .
 ```
+
+Las dependencias y sus versiones exactas se declaran en `pyproject.toml`; `uv.lock` fija también
+las dependencias transitivas. Usa `uv sync --locked` para instalar sin modificar el lockfile.
+Durante esta migración, `requirements.txt` y `requirements-dev.txt` se conservan temporalmente
+porque el Dockerfile aún los usa. Se retirarán al completar el paso 2 de la migración a uv.
 
 ## Estructura
 
